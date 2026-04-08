@@ -1,6 +1,6 @@
 services:
   meal-planner:
-    image: registry.flyingfinger.de/meal-planner/meal-planner:latest
+    image: ghcr.io/flyingfinger1/meal-planner:latest
     restart: unless-stopped
     env_file: .env
     environment:

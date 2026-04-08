@@ -28,7 +28,7 @@ A self-hosted weekly meal planning app with shopping list management and [Bring!
 ```yaml
 services:
   meal-planner:
-    image: ghcr.io/youruser/meal-planner:latest
+    image: ghcr.io/flyingfinger1/meal-planner:latest
     restart: unless-stopped
     env_file: .env
     environment:
@@ -57,7 +57,7 @@ The example above exposes port `3200` directly. In production you'll typically p
 ```yaml
 services:
   meal-planner:
-    image: ghcr.io/youruser/meal-planner:latest
+    image: ghcr.io/flyingfinger1/meal-planner:latest
     restart: unless-stopped
     env_file: .env
     environment:
