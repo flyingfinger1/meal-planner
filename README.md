@@ -2,7 +2,7 @@
 
 A self-hosted weekly meal planning app with shopping list management and [Bring!](https://www.getbring.com/) integration.
 
-![Screenshot placeholder]()
+<img width="518" height="938" alt="image" src="https://github.com/user-attachments/assets/ae387bed-1bd4-42a8-88f3-a7a2e0375991" />
 
 ## Features
 
