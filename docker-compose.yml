@@ -1,0 +1,21 @@
+services:
+  meal-planner:
+    image: registry.flyingfinger.de/meal-planner/meal-planner:latest
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_PATH: /data/meal-planner.sqlite
+    volumes:
+      - meal-planner-data:/data
+    networks:
+      - caddy-net
+    labels:
+      caddy: meal-planner.flyingfinger.de
+      caddy.reverse_proxy: "{{upstreams 3200}}"
+
+volumes:
+  meal-planner-data:
+
+networks:
+  caddy-net:
+    external: true
