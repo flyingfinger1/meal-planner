@@ -2,6 +2,7 @@
 
 [![GitHub Release](https://img.shields.io/github/v/release/flyingfinger1/meal-planner)](https://github.com/flyingfinger1/meal-planner/releases)
 [![Docker Image](https://img.shields.io/badge/ghcr.io-meal--planner-blue?logo=docker)](https://ghcr.io/flyingfinger1/meal-planner)
+[![Node](https://img.shields.io/badge/node-22-brightgreen?logo=node.js)](https://nodejs.org)
 [![License](https://img.shields.io/github/license/flyingfinger1/meal-planner)](LICENSE)
 
 A self-hosted weekly meal planning app with shopping list management and [Bring!](https://www.getbring.com/) integration.
