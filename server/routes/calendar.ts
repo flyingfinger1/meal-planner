@@ -1,18 +1,18 @@
-import { Router } from 'express';
+import { Router, type Request, type Response } from 'express';
 import ical from 'node-ical';
 import { queryOne, runSql } from '../db.js';
 
 const router = Router();
 
-// Cache parsed events to avoid refetching on every request
-let cachedEvents: { date: string; title: string }[] = [];
-let lastFetch = 0;
+// Cache parsed events keyed by groupId
+const calendarCache = new Map<number, { events: { date: string; title: string }[]; lastFetch: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-async function fetchCalendarEvents(url: string): Promise<{ date: string; title: string }[]> {
+async function fetchCalendarEvents(groupId: number, url: string): Promise<{ date: string; title: string }[]> {
   const now = Date.now();
-  if (now - lastFetch < CACHE_TTL && cachedEvents.length > 0) {
-    return cachedEvents;
+  const cached = calendarCache.get(groupId);
+  if (cached && now - cached.lastFetch < CACHE_TTL && cached.events.length > 0) {
+    return cached.events;
   }
 
   try {
@@ -30,13 +30,10 @@ async function fetchCalendarEvents(url: string): Promise<{ date: string; title: 
       const isDateOnly = startRaw.dateOnly === true;
       const title = (event.summary as string) || 'Besuch';
 
-      // For dateOnly (all-day) events, round to correct local date
       const startDate = isDateOnly ? roundToLocalDate(new Date(startRaw)) : formatDate(new Date(startRaw));
       const endDate = endRaw ? (isDateOnly ? roundToLocalDate(new Date(endRaw)) : formatDate(new Date(endRaw))) : null;
 
-      // For multi-day events, add each day
       if (endDate && endDate > startDate) {
-        // Iterate using simple date string arithmetic to avoid timezone issues
         let current = startDate;
         while (current < endDate) {
           events.push({ date: current, title });
@@ -46,7 +43,6 @@ async function fetchCalendarEvents(url: string): Promise<{ date: string; title: 
         events.push({ date: startDate, title });
       }
 
-      // Handle recurring events (RRULE) - node-ical expands them if present
       if ((event as any).rrule) {
         const rrule = (event as any).rrule;
         const after = new Date();
@@ -56,13 +52,9 @@ async function fetchCalendarEvents(url: string): Promise<{ date: string; title: 
         try {
           const occurrences = rrule.between(after, before, true);
           for (const occ of occurrences) {
-            // RRULE returns dates in the same timezone offset as the original event.
-            // For dateOnly events, node-ical stores them as UTC 22:00 or 23:00 (= midnight local time).
-            // The RRULE occurrences inherit this, so we need to round up to the next UTC day.
             const occD = new Date(occ);
             const occStart = isDateOnly ? roundToLocalDate(occD) : formatDate(occD);
             if (endDate && startDate && endDate > startDate) {
-              // Multi-day recurring: replicate the duration
               let cur = occStart;
               const dayCount = daysBetween(startDate, endDate);
               for (let i = 0; i < dayCount; i++) {
@@ -79,12 +71,11 @@ async function fetchCalendarEvents(url: string): Promise<{ date: string; title: 
       }
     }
 
-    cachedEvents = events;
-    lastFetch = now;
+    calendarCache.set(groupId, { events, lastFetch: now });
     return events;
   } catch (e) {
     console.error('Failed to fetch calendar:', e);
-    return cachedEvents; // return stale cache on error
+    return cached?.events ?? []; // return stale cache on error
   }
 }
 
@@ -102,11 +93,8 @@ function formatDateUTC(d: Date): string {
   return `${y}-${m}-${day}`;
 }
 
-// For dateOnly events, node-ical stores midnight local as 22:00/23:00 UTC (depending on DST).
-// RRULE occurrences inherit this offset. Round up to get the correct local date.
 function roundToLocalDate(d: Date): string {
   if (d.getUTCHours() >= 20) {
-    // This is actually the next day in local time
     const next = new Date(d);
     next.setUTCDate(next.getUTCDate() + 1);
     return formatDateUTC(next);
@@ -121,15 +109,18 @@ function daysBetween(a: string, b: string): number {
 }
 
 function nextDay(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00Z'); // noon to avoid DST issues
+  const d = new Date(dateStr + 'T12:00:00Z');
   d.setUTCDate(d.getUTCDate() + 1);
   return formatDateUTC(d);
 }
 
 // Get calendar settings
-router.get('/settings', (_req, res) => {
-  const row = queryOne("SELECT value FROM settings WHERE key = 'ical_url'");
-  const labelRow = queryOne("SELECT value FROM settings WHERE key = 'ical_label'");
+router.get('/settings', (req: Request, res: Response) => {
+  const groupId = req.groupId;
+  if (groupId == null) return res.status(403).json({ error: 'No group selected' });
+
+  const row = queryOne("SELECT value FROM settings WHERE group_id = ? AND key = 'ical_url'", [groupId]);
+  const labelRow = queryOne("SELECT value FROM settings WHERE group_id = ? AND key = 'ical_label'", [groupId]);
   res.json({
     ical_url: row?.value || '',
     ical_label: labelRow?.value || 'Kinder zu Besuch',
@@ -137,37 +128,47 @@ router.get('/settings', (_req, res) => {
 });
 
 // Save calendar settings
-router.put('/settings', (req, res) => {
+router.put('/settings', (req: Request, res: Response) => {
+  const groupId = req.groupId;
+  if (groupId == null) return res.status(403).json({ error: 'No group selected' });
+
   const { ical_url, ical_label } = req.body;
 
   if (ical_url !== undefined) {
-    runSql("INSERT INTO settings (key, value) VALUES ('ical_url', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [ical_url]);
+    runSql(
+      "INSERT INTO settings (group_id, key, value) VALUES (?, 'ical_url', ?) ON CONFLICT(group_id, key) DO UPDATE SET value = excluded.value",
+      [groupId, ical_url]
+    );
     // Clear cache when URL changes
-    cachedEvents = [];
-    lastFetch = 0;
+    calendarCache.delete(groupId);
   }
   if (ical_label !== undefined) {
-    runSql("INSERT INTO settings (key, value) VALUES ('ical_label', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [ical_label]);
+    runSql(
+      "INSERT INTO settings (group_id, key, value) VALUES (?, 'ical_label', ?) ON CONFLICT(group_id, key) DO UPDATE SET value = excluded.value",
+      [groupId, ical_label]
+    );
   }
 
   res.json({ ok: true });
 });
 
 // Get calendar events for a date range
-router.get('/events', async (req, res) => {
+router.get('/events', async (req: Request, res: Response) => {
+  const groupId = req.groupId;
+  if (groupId == null) return res.status(403).json({ error: 'No group selected' });
+
   const { from, to } = req.query;
   if (!from || !to) return res.status(400).json({ error: 'from and to required' });
 
-  const row = queryOne("SELECT value FROM settings WHERE key = 'ical_url'");
+  const row = queryOne("SELECT value FROM settings WHERE group_id = ? AND key = 'ical_url'", [groupId]);
   if (!row?.value) return res.json({ events: [] });
 
-  const labelRow = queryOne("SELECT value FROM settings WHERE key = 'ical_label'");
+  const labelRow = queryOne("SELECT value FROM settings WHERE group_id = ? AND key = 'ical_label'", [groupId]);
   const filterLabel = (labelRow?.value || '').trim().toLowerCase();
 
-  const allEvents = await fetchCalendarEvents(row.value);
+  const allEvents = await fetchCalendarEvents(groupId, row.value);
   const filtered = allEvents.filter(e => {
     if (e.date < (from as string) || e.date > (to as string)) return false;
-    // Filter by label if set
     if (filterLabel) return e.title.toLowerCase().includes(filterLabel);
     return true;
   });
