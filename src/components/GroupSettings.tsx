@@ -6,6 +6,7 @@ import {
   deleteGroup,
   leaveGroup,
   removeMember,
+  transferOwnership,
   regenerateInviteCode,
   sendInvitation,
 } from '../api';
@@ -91,6 +92,19 @@ export default function GroupSettings({
     try {
       await removeMember(groupId, memberId);
       setMembers(prev => prev.filter(m => m.user_id !== memberId));
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleTransferOwnership = async (targetUserId: number, targetName: string) => {
+    if (!confirm(`Inhaberschaft an ${targetName} übertragen? Du wirst dann normales Mitglied.`)) return;
+    try {
+      await transferOwnership(groupId, targetUserId);
+      setMembers(prev => prev.map(m => ({
+        ...m,
+        role: m.user_id === user.id ? 'member' : m.user_id === targetUserId ? 'owner' : m.role,
+      } as typeof m)));
     } catch {
       // ignore
     }
@@ -217,16 +231,30 @@ export default function GroupSettings({
                       {m.role === 'owner' ? 'Inhaber' : 'Mitglied'}
                     </span>
                     {isOwner && m.user_id !== user.id && (
-                      <button
-                        onClick={() => handleRemoveMember(m.user_id)}
-                        className="text-gray-300 hover:text-red-500 flex-shrink-0 p-1"
-                        title="Entfernen"
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"/>
-                          <line x1="6" y1="6" x2="18" y2="18"/>
-                        </svg>
-                      </button>
+                      <div className="flex gap-1 flex-shrink-0">
+                        {m.role !== 'owner' && (
+                          <button
+                            onClick={() => handleTransferOwnership(m.user_id, m.name)}
+                            className="text-gray-300 hover:text-yellow-500 p-1"
+                            title="Zum Inhaber machen"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                              <polyline points="15 3 18 6 15 9"/>
+                            </svg>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleRemoveMember(m.user_id)}
+                          className="text-gray-300 hover:text-red-500 p-1"
+                          title="Entfernen"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"/>
+                            <line x1="6" y1="6" x2="18" y2="18"/>
+                          </svg>
+                        </button>
+                      </div>
                     )}
                   </li>
                 ))}

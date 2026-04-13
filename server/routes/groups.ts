@@ -113,7 +113,7 @@ router.delete('/:id', (req: Request, res: Response) => {
   res.status(204).end();
 });
 
-// POST /:id/leave — leave (error if sole owner)
+// POST /:id/leave — leave (blocked if sole owner)
 router.post('/:id/leave', (req: Request, res: Response) => {
   const userId = req.user!.id;
   const groupId = Number(req.params.id);
@@ -122,16 +122,38 @@ router.post('/:id/leave', (req: Request, res: Response) => {
   if (!membership) return res.status(400).json({ error: 'Not a member' });
 
   if (membership.role === 'owner') {
-    const otherOwners = queryAll(
-      "SELECT * FROM group_members WHERE group_id = ? AND user_id != ? AND role = 'owner'",
-      [groupId, userId]
-    );
-    if (!otherOwners.length) {
-      return res.status(400).json({ error: 'Cannot leave: you are the sole owner. Transfer ownership or delete the group.' });
-    }
+    return res.status(400).json({ error: 'Als Inhaber kannst du die Gruppe nicht verlassen. Übertrage die Inhaberschaft oder lösche die Gruppe.' });
   }
 
   runSql('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+
+  // Auto-delete group if no members remain
+  const remaining = queryOne('SELECT COUNT(*) as count FROM group_members WHERE group_id = ?', [groupId]);
+  if ((remaining?.count ?? 0) === 0) {
+    runSql('DELETE FROM groups WHERE id = ?', [groupId]);
+  }
+
+  res.json({ ok: true });
+});
+
+// POST /:id/transfer-ownership — transfer ownership to another member (owner only)
+router.post('/:id/transfer-ownership', (req: Request, res: Response) => {
+  const userId = req.user!.id;
+  const groupId = Number(req.params.id);
+  const { targetUserId } = req.body;
+
+  if (!targetUserId) return res.status(400).json({ error: 'targetUserId required' });
+
+  const membership = queryOne('SELECT * FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, userId]);
+  if (!membership) return res.status(403).json({ error: 'Not a member' });
+  if (membership.role !== 'owner') return res.status(403).json({ error: 'Owner only' });
+
+  const target = queryOne('SELECT * FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, targetUserId]);
+  if (!target) return res.status(404).json({ error: 'Target user is not a member of this group' });
+
+  runSql("UPDATE group_members SET role = 'member' WHERE group_id = ? AND user_id = ?", [groupId, userId]);
+  runSql("UPDATE group_members SET role = 'owner' WHERE group_id = ? AND user_id = ?", [groupId, targetUserId]);
+
   res.json({ ok: true });
 });
 

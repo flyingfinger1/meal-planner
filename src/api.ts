@@ -166,6 +166,12 @@ export const leaveGroup = (id: number) =>
 export const removeMember = (groupId: number, userId: number) =>
   request<void>(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' });
 
+export const transferOwnership = (groupId: number, targetUserId: number) =>
+  request<{ ok: boolean }>(`/api/groups/${groupId}/transfer-ownership`, {
+    method: 'POST',
+    body: JSON.stringify({ targetUserId }),
+  });
+
 export const regenerateInviteCode = (groupId: number) =>
   request<{ invite_code: string }>(`/api/groups/${groupId}/regenerate-invite`, { method: 'POST' });
 
