@@ -1,4 +1,6 @@
 FROM node:22-slim AS build
+ARG BUILD_VERSION=dev
+ENV VITE_APP_VERSION=$BUILD_VERSION
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci

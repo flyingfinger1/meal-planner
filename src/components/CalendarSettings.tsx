@@ -74,6 +74,9 @@ export default function CalendarSettings({ onClose, onSaved }: CalendarSettingsP
             {saved ? 'Gespeichert!' : saving ? 'Speichert...' : 'Speichern'}
           </button>
         </div>
+        <div className="px-4 py-3 border-t border-gray-100">
+          <p className="text-xs text-gray-300 text-right">{import.meta.env.VITE_APP_VERSION ?? 'dev'}</p>
+        </div>
       </div>
     </div>
   );
