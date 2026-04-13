@@ -13,6 +13,7 @@ interface MealSearchProps {
 export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Meal[]>([]);
+  const [creating, setCreating] = useState(false);
   const debouncedQuery = useDebounce(query, 200);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -35,7 +36,8 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
   };
 
   const createAndSelect = async () => {
-    if (!query.trim()) return;
+    if (!query.trim() || creating) return;
+    setCreating(true);
     const meal = await createMeal(query.trim());
     await setPlanEntry(date, mealType, meal.id);
     onDone();
@@ -68,9 +70,10 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
           {query.trim() && !exactMatch && (
             <button
               onClick={createAndSelect}
-              className="w-full px-4 py-3 text-left hover:bg-blue-50 active:bg-blue-100 text-blue-600 font-medium border-b border-gray-100"
+              disabled={creating}
+              className="w-full px-4 py-3 text-left hover:bg-blue-50 active:bg-blue-100 text-blue-600 font-medium border-b border-gray-100 disabled:opacity-50"
             >
-              + &ldquo;{query.trim()}&rdquo; neu erstellen
+              {creating ? 'Erstellt...' : <span>+ &ldquo;{query.trim()}&rdquo; neu erstellen</span>}
             </button>
           )}
           {results.map(meal => (
