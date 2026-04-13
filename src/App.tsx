@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { MealType, PlanEntry, Meal, User, Group } from './types';
-import { setPlanEntry, getCalendarEvents, checkAuth, switchGroup, getGroups } from './api';
+import { setPlanEntry, getCalendarEvents, checkAuth, getAuthProviders, switchGroup, getGroups } from './api';
 import type { CalendarEvent } from './api';
 import { usePlan } from './hooks/usePlan';
 import Header from './components/Header';
@@ -49,20 +49,23 @@ interface AuthState {
 export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
   const [auth, setAuth] = useState<AuthState | null>(null);
+  const [googleEnabled, setGoogleEnabled] = useState(false);
 
   useEffect(() => {
-    checkAuth()
-      .then(data => {
-        if (data.authenticated && data.user) {
-          setAuth({
-            user: data.user,
-            groupId: data.groupId ?? null,
-            smtpEnabled: data.smtpEnabled ?? false,
-          });
-        }
-        setAuthChecked(true);
-      })
-      .catch(() => setAuthChecked(true));
+    Promise.all([
+      checkAuth().catch(() => null),
+      getAuthProviders().catch(() => ({ google: false })),
+    ]).then(([authData, providers]) => {
+      if (authData?.authenticated && authData.user) {
+        setAuth({
+          user: authData.user,
+          groupId: authData.groupId ?? null,
+          smtpEnabled: authData.smtpEnabled ?? false,
+        });
+      }
+      setGoogleEnabled(providers.google);
+      setAuthChecked(true);
+    });
   }, []);
 
   const handleLogin = (user: User, groupId: number | null) => {
@@ -82,8 +85,20 @@ export default function App() {
     setAuth(prev => prev ? { ...prev, groupId: newGroupId } : null);
   };
 
-  const handleGroupLost = () => {
-    setAuth(prev => prev ? { ...prev, groupId: null } : null);
+  const handleGroupLost = async () => {
+    try {
+      const remaining = await getGroups();
+      if (remaining.length > 0) {
+        await switchGroup(remaining[0].id);
+        setAuth(prev => prev ? { ...prev, groupId: remaining[0].id } : null);
+      } else {
+        // No groups left — clear the groupId in the cookie so F5 lands on Onboarding
+        await fetch('/api/auth/clear-group', { method: 'POST', credentials: 'include' });
+        setAuth(prev => prev ? { ...prev, groupId: null } : null);
+      }
+    } catch {
+      setAuth(prev => prev ? { ...prev, groupId: null } : null);
+    }
   };
 
   if (!authChecked) return null; // loading
@@ -93,13 +108,11 @@ export default function App() {
     return (
       <InviteHandler
         currentUser={auth?.user ?? null}
+        googleEnabled={googleEnabled}
         onJoined={(groupId) => {
-          // Called when already logged in and joining
           handleGroupChange(groupId);
         }}
         onLogin={(user, groupId) => {
-          // Called after register/login + join in unauthenticated flow
-          // groupId here is the joined group (set by InviteHandler after joinGroup)
           handleLogin(user, groupId);
         }}
       />
@@ -107,7 +120,7 @@ export default function App() {
   }
 
   if (!auth) {
-    return <LoginScreen onLogin={handleLogin} />;
+    return <LoginScreen onLogin={handleLogin} googleEnabled={googleEnabled} />;
   }
 
   if (auth.groupId === null) {

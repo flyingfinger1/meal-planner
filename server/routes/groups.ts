@@ -109,6 +109,7 @@ router.delete('/:id', (req: Request, res: Response) => {
   if (!membership) return res.status(403).json({ error: 'Not a member' });
   if (membership.role !== 'owner') return res.status(403).json({ error: 'Owner only' });
 
+  runSql('DELETE FROM group_members WHERE group_id = ?', [groupId]);
   runSql('DELETE FROM groups WHERE id = ?', [groupId]);
   res.status(204).end();
 });

@@ -84,7 +84,17 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
             );
             const newUser = queryOne('SELECT * FROM users WHERE google_id = ?', [googleId]);
             if (!newUser) return done(new Error('Failed to create user'));
-            createGroupForUser(newUser.id, `${name}s Haushalt`);
+
+            // Claim migrated group if available, otherwise create a new one
+            const claimMeta = queryOne("SELECT value FROM _meta WHERE key = 'claim_group_id'");
+            if (claimMeta) {
+              const migratedGroupId = Number(claimMeta.value);
+              runSql('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [migratedGroupId, newUser.id, 'owner']);
+              runSql("DELETE FROM _meta WHERE key = 'claim_group_id'");
+            } else {
+              createGroupForUser(newUser.id, `${name}s Haushalt`);
+            }
+
             user = newUser;
           }
 
@@ -105,6 +115,13 @@ passport.deserializeUser((id: number, done) => {
 
 const router = Router();
 
+// GET /providers — public, returns which OAuth providers are configured
+router.get('/providers', (_req: Request, res: Response) => {
+  res.json({
+    google: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+  });
+});
+
 // GET /check
 router.get('/check', (req: Request, res: Response) => {
   const token = req.cookies?.[COOKIE_NAME];
@@ -119,10 +136,34 @@ router.get('/check', (req: Request, res: Response) => {
     const user = queryOne('SELECT id, email, name FROM users WHERE id = ?', [payload.userId]);
     if (!user) return res.status(401).json({ authenticated: false });
 
+    // Validate groupId — user may have left, been removed, or the group was deleted
+    let groupId: number | null = payload.groupId ?? null;
+    if (groupId !== null) {
+      // JOIN with groups to also catch deleted groups with orphaned group_members rows
+      const membership = queryOne(
+        `SELECT gm.* FROM group_members gm
+         JOIN groups g ON g.id = gm.group_id
+         WHERE gm.group_id = ? AND gm.user_id = ?`,
+        [groupId, user.id]
+      );
+      if (!membership) {
+        // No longer a member — fall back to their first remaining group
+        const firstGroup = queryOne(
+          `SELECT gm.group_id FROM group_members gm
+           JOIN groups g ON g.id = gm.group_id
+           WHERE gm.user_id = ? ORDER BY gm.joined_at ASC LIMIT 1`,
+          [user.id]
+        );
+        groupId = firstGroup?.group_id ?? null;
+        // Rewrite the cookie so subsequent API calls use the correct groupId
+        setCookieToken(res, signToken({ userId: user.id, groupId }));
+      }
+    }
+
     res.json({
       authenticated: true,
       user: { id: user.id, name: user.name, email: user.email },
-      groupId: payload.groupId ?? null,
+      groupId,
       smtpEnabled: !!process.env.SMTP_HOST,
     });
   } catch {
@@ -149,7 +190,17 @@ router.post('/register', async (req: Request, res: Response) => {
     const user = queryOne('SELECT * FROM users WHERE email = ?', [email.trim().toLowerCase()]);
     if (!user) return res.status(500).json({ error: 'Failed to create user' });
 
-    const groupId = createGroupForUser(user.id, `${name.trim()}s Haushalt`);
+    // If a migration left an ownerless group, the first user claims it instead of getting a new one
+    let groupId: number;
+    const claimMeta = queryOne("SELECT value FROM _meta WHERE key = 'claim_group_id'");
+    if (claimMeta) {
+      groupId = Number(claimMeta.value);
+      runSql('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [groupId, user.id, 'owner']);
+      runSql("DELETE FROM _meta WHERE key = 'claim_group_id'");
+    } else {
+      groupId = createGroupForUser(user.id, `${name.trim()}s Haushalt`);
+    }
+
     const token = signToken({ userId: user.id, groupId });
     setCookieToken(res, token);
 
@@ -203,6 +254,20 @@ router.post('/logout', (_req: Request, res: Response) => {
   res.json({ ok: true });
 });
 
+// POST /clear-group — rewrite cookie with groupId: null (user has no group left)
+router.post('/clear-group', (req: Request, res: Response) => {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  try {
+    const payload = jwt.verify(token, AUTH_SECRET) as any;
+    if (!payload.userId) return res.status(401).json({ error: 'Invalid token' });
+    setCookieToken(res, signToken({ userId: payload.userId, groupId: null }));
+    res.json({ ok: true });
+  } catch {
+    res.status(401).json({ error: 'Invalid token' });
+  }
+});
+
 // POST /switch-group
 router.post('/switch-group', (req: Request, res: Response) => {
   const token = req.cookies?.[COOKIE_NAME];
@@ -232,7 +297,19 @@ router.post('/switch-group', (req: Request, res: Response) => {
 
 // GET /google
 if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
-  router.get('/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
+  router.get('/google', (req: Request, res: Response, next: NextFunction) => {
+    // Store pending invite code in a short-lived cookie so the callback can join the group
+    const invite = req.query.invite as string | undefined;
+    if (invite) {
+      res.cookie('pending_invite', invite, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000, // 10 minutes
+      });
+    }
+    passport.authenticate('google', { scope: ['email', 'profile'] })(req, res, next);
+  });
 
   router.get(
     '/google/callback',
@@ -241,11 +318,34 @@ if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
       const user = req.user as any;
       if (!user) return res.redirect(`${process.env.APP_URL || 'http://localhost:5173'}/login?error=oauth`);
 
-      const membership = queryOne(
-        'SELECT group_id FROM group_members WHERE user_id = ? ORDER BY joined_at ASC LIMIT 1',
-        [user.id]
-      );
-      const groupId = membership?.group_id ?? null;
+      // Check for pending invite — join the group automatically
+      const pendingInvite = req.cookies?.pending_invite as string | undefined;
+      res.clearCookie('pending_invite');
+
+      let groupId: number | null = null;
+
+      if (pendingInvite) {
+        const inviteGroup = queryOne('SELECT * FROM groups WHERE invite_code = ?', [pendingInvite]);
+        if (inviteGroup) {
+          const existing = queryOne(
+            'SELECT * FROM group_members WHERE group_id = ? AND user_id = ?',
+            [inviteGroup.id, user.id]
+          );
+          if (!existing) {
+            runSql('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)',
+              [inviteGroup.id, user.id, 'member']);
+          }
+          groupId = inviteGroup.id as number;
+        }
+      }
+
+      if (groupId === null) {
+        const membership = queryOne(
+          'SELECT group_id FROM group_members WHERE user_id = ? ORDER BY joined_at ASC LIMIT 1',
+          [user.id]
+        );
+        groupId = membership?.group_id ?? null;
+      }
 
       const token = signToken({ userId: user.id, groupId });
       setCookieToken(res, token);

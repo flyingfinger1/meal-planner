@@ -163,10 +163,9 @@ export default function ShoppingExport({ initialMonday, onClose }: ShoppingExpor
   const selectedFromOtherWeeks = Array.from(selectedDates).filter(d => !weekDays.includes(d)).length;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div
         className="bg-white w-full sm:w-[28rem] sm:rounded-xl rounded-t-xl max-h-[85vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
       >
         <div className="p-4 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-lg font-bold">Einkaufsliste</h2>

@@ -123,7 +123,7 @@ router.get('/settings', (req: Request, res: Response) => {
   const labelRow = queryOne("SELECT value FROM settings WHERE group_id = ? AND key = 'ical_label'", [groupId]);
   res.json({
     ical_url: row?.value || '',
-    ical_label: labelRow?.value || 'Kinder zu Besuch',
+    ical_label: labelRow?.value || '',
   });
 });
 

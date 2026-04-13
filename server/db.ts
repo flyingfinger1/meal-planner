@@ -165,8 +165,10 @@ function runMigration1(database: Database): void {
     )
   `);
 
-  // Mark migration done
+  // Mark migration done + flag so the first registering user claims this group
   database.run(`INSERT INTO _meta (key, value) VALUES ('schema_version', '1')`);
+  database.run(`INSERT INTO _meta (key, value) VALUES ('claim_group_id', '${groupId}')`);
+
 }
 
 export async function initDb(): Promise<Database> {

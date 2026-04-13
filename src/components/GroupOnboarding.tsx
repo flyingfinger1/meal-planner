@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { User } from '../types';
-import { createGroup, joinGroup, getGroupByInviteCode } from '../api';
+import { createGroup, joinGroup, switchGroup, getGroupByInviteCode } from '../api';
 
 interface GroupOnboardingProps {
   user: User;
@@ -32,6 +32,7 @@ export default function GroupOnboarding({ user, onGroupReady, onLogout }: GroupO
     setLoading(true);
     try {
       const group = await createGroup(groupName.trim());
+      await switchGroup(group.id);
       onGroupReady(group.id);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erstellen fehlgeschlagen');
@@ -63,6 +64,7 @@ export default function GroupOnboarding({ user, onGroupReady, onLogout }: GroupO
     setLoading(true);
     try {
       const result = await joinGroup(code);
+      await switchGroup(result.groupId);
       onGroupReady(result.groupId);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Beitreten fehlgeschlagen');

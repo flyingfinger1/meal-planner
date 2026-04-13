@@ -52,10 +52,9 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
   const exactMatch = results.some(m => m.name.toLowerCase() === query.trim().toLowerCase());
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onClick={onDone}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onMouseDown={(e) => { if (e.target === e.currentTarget) onDone(); }}>
       <div
         className="bg-white w-full sm:w-96 sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col"
-        onClick={e => e.stopPropagation()}
       >
         <div className="p-4 border-b border-gray-100">
           <input

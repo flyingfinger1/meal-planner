@@ -132,6 +132,9 @@ export const login = (email: string, password: string) =>
 export const checkAuth = () =>
   request<{ authenticated: boolean; user?: User; groupId?: number | null; smtpEnabled?: boolean }>('/api/auth/check');
 
+export const getAuthProviders = () =>
+  request<{ google: boolean }>('/api/auth/providers');
+
 export const switchGroup = (groupId: number) =>
   request<{ ok: boolean }>('/api/auth/switch-group', {
     method: 'POST',
