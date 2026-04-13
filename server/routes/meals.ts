@@ -45,7 +45,9 @@ router.put('/:id', (req, res) => {
 
 // Delete meal
 router.delete('/:id', (req, res) => {
-  runSql('DELETE FROM meals WHERE id = ?', [Number(req.params.id)]);
+  const id = Number(req.params.id);
+  runSql('DELETE FROM meal_plan WHERE meal_id = ?', [id]);
+  runSql('DELETE FROM meals WHERE id = ?', [id]);
   res.status(204).end();
 });
 
