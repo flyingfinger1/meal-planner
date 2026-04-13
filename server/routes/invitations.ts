@@ -5,8 +5,8 @@ import { requireAuth } from '../auth.js';
 
 const router = Router();
 
-const INVITE_LIMIT_PER_USER = Number(process.env.INVITE_LIMIT_PER_USER || 10);
-const INVITE_LIMIT_PER_EMAIL = Number(process.env.INVITE_LIMIT_PER_EMAIL || 3);
+const DAILY_INVITE_LIMIT_PER_USER = Number(process.env.DAILY_INVITE_LIMIT_PER_USER || 10);
+const DAILY_INVITE_LIMIT_PER_EMAIL = Number(process.env.DAILY_INVITE_LIMIT_PER_EMAIL || 3);
 const APP_URL = process.env.APP_URL || 'http://localhost:5173';
 
 function createTransport() {
@@ -44,16 +44,16 @@ router.post('/groups/:groupId/invitations', requireAuth, async (req: Request, re
     'SELECT COUNT(*) as count FROM group_invitations WHERE group_id = ? AND sent_by = ? AND sent_at > ?',
     [groupId, userId, since]
   );
-  if ((userInviteCount?.count ?? 0) >= INVITE_LIMIT_PER_USER) {
-    return res.status(429).json({ error: `Rate limit: max ${INVITE_LIMIT_PER_USER} invitations per 24h` });
+  if ((userInviteCount?.count ?? 0) >= DAILY_INVITE_LIMIT_PER_USER) {
+    return res.status(429).json({ error: `Rate limit: max ${DAILY_INVITE_LIMIT_PER_USER} invitations per 24h` });
   }
 
   const emailInviteCount = queryOne(
     'SELECT COUNT(*) as count FROM group_invitations WHERE group_id = ? AND to_email = ? AND sent_at > ?',
     [groupId, toEmail, since]
   );
-  if ((emailInviteCount?.count ?? 0) >= INVITE_LIMIT_PER_EMAIL) {
-    return res.status(429).json({ error: `This email has already been invited ${INVITE_LIMIT_PER_EMAIL} times in the last 24h` });
+  if ((emailInviteCount?.count ?? 0) >= DAILY_INVITE_LIMIT_PER_EMAIL) {
+    return res.status(429).json({ error: `This email has already been invited ${DAILY_INVITE_LIMIT_PER_EMAIL} times in the last 24h` });
   }
 
   // Get group info
