@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { MealType, PlanEntry, Meal } from './types';
-import { setPlanEntry, getCalendarEvents } from './api';
+import type { MealType, PlanEntry, Meal, User, Group } from './types';
+import { setPlanEntry, getCalendarEvents, checkAuth, switchGroup, getGroups } from './api';
 import type { CalendarEvent } from './api';
 import { usePlan } from './hooks/usePlan';
 import Header from './components/Header';
@@ -11,6 +11,9 @@ import ShoppingExport from './components/ShoppingExport';
 import CalendarSettings from './components/CalendarSettings';
 import QuickLists from './components/QuickLists';
 import LoginScreen from './components/LoginScreen';
+import GroupOnboarding from './components/GroupOnboarding';
+import InviteHandler from './components/InviteHandler';
+import GroupSettings from './components/GroupSettings';
 
 function getMonday(date: Date): Date {
   const d = new Date(date);
@@ -34,32 +37,116 @@ function formatISO(date: Date): string {
   return `${y}-${m}-${d}`;
 }
 
+function isInviteUrl(): boolean {
+  return window.location.pathname.includes('/invite/');
+}
+
+interface AuthState {
+  user: User;
+  groupId: number | null;
+  smtpEnabled: boolean;
+}
+
 export default function App() {
   const [authChecked, setAuthChecked] = useState(false);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [auth, setAuth] = useState<AuthState | null>(null);
 
   useEffect(() => {
-    fetch('/api/auth/check', { credentials: 'include' })
-      .then(res => {
-        setAuthenticated(res.ok);
+    checkAuth()
+      .then(data => {
+        if (data.authenticated && data.user) {
+          setAuth({
+            user: data.user,
+            groupId: data.groupId ?? null,
+            smtpEnabled: data.smtpEnabled ?? false,
+          });
+        }
         setAuthChecked(true);
       })
       .catch(() => setAuthChecked(true));
   }, []);
 
+  const handleLogin = (user: User, groupId: number | null) => {
+    setAuth({ user, groupId, smtpEnabled: false });
+  };
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    setAuthenticated(false);
+    setAuth(null);
+  };
+
+  const handleGroupReady = (groupId: number) => {
+    setAuth(prev => prev ? { ...prev, groupId } : null);
+  };
+
+  const handleGroupChange = (newGroupId: number) => {
+    setAuth(prev => prev ? { ...prev, groupId: newGroupId } : null);
+  };
+
+  const handleGroupLost = () => {
+    setAuth(prev => prev ? { ...prev, groupId: null } : null);
   };
 
   if (!authChecked) return null; // loading
-  if (!authenticated) return <LoginScreen onLogin={() => setAuthenticated(true)} />;
 
-  return <AuthenticatedApp onLogout={handleLogout} />;
+  // Invite URL — show InviteHandler regardless of auth state
+  if (isInviteUrl()) {
+    return (
+      <InviteHandler
+        currentUser={auth?.user ?? null}
+        onJoined={(groupId) => {
+          // Called when already logged in and joining
+          handleGroupChange(groupId);
+        }}
+        onLogin={(user, groupId) => {
+          // Called after register/login + join in unauthenticated flow
+          // groupId here is the joined group (set by InviteHandler after joinGroup)
+          handleLogin(user, groupId);
+        }}
+      />
+    );
+  }
+
+  if (!auth) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  if (auth.groupId === null) {
+    return (
+      <GroupOnboarding
+        user={auth.user}
+        onGroupReady={handleGroupReady}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  return (
+    <AuthenticatedApp
+      key={auth.groupId}
+      user={auth.user}
+      groupId={auth.groupId}
+      smtpEnabled={auth.smtpEnabled}
+      onLogout={handleLogout}
+      onGroupChange={handleGroupChange}
+      onGroupLost={handleGroupLost}
+    />
+  );
 }
 
-function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
+interface AuthenticatedAppProps {
+  user: User;
+  groupId: number;
+  smtpEnabled: boolean;
+  onLogout: () => void;
+  onGroupChange: (newGroupId: number) => void;
+  onGroupLost: () => void;
+}
+
+function AuthenticatedApp({ user, groupId, smtpEnabled, onLogout, onGroupChange, onGroupLost }: AuthenticatedAppProps) {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [groups, setGroups] = useState<(Group & { role: string })[]>([]);
+  const [showGroupSettings, setShowGroupSettings] = useState(false);
 
   const monday = useMemo(() => addDays(getMonday(new Date()), weekOffset * 7), [weekOffset]);
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => formatISO(addDays(monday, i))), [monday]);
@@ -73,6 +160,13 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
   }, [monday]);
 
   const { entries, refresh } = usePlan(from, to);
+
+  // Fetch groups list
+  useEffect(() => {
+    getGroups()
+      .then(setGroups)
+      .catch(() => setGroups([]));
+  }, [groupId]);
 
   // Calendar events
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
@@ -114,6 +208,11 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
     refresh();
   }, [refresh]);
 
+  const handleGroupSwitch = useCallback(async (newGroupId: number) => {
+    await switchGroup(newGroupId);
+    onGroupChange(newGroupId);
+  }, [onGroupChange]);
+
   const mondayISO = useMemo(() => formatISO(monday), [monday]);
 
   return (
@@ -125,6 +224,12 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
         onQuickListsClick={() => setShowQuickLists(true)}
         onSettingsClick={() => setShowCalendarSettings(true)}
         onLogout={onLogout}
+        user={user}
+        groups={groups}
+        currentGroupId={groupId}
+        smtpEnabled={smtpEnabled}
+        onGroupSwitch={handleGroupSwitch}
+        onGroupSettings={() => setShowGroupSettings(true)}
       />
       <WeekView
         days={days}
@@ -167,6 +272,23 @@ function AuthenticatedApp({ onLogout }: { onLogout: () => void }) {
         <CalendarSettings
           onClose={() => setShowCalendarSettings(false)}
           onSaved={() => setCalendarVersion(v => v + 1)}
+        />
+      )}
+
+      {showGroupSettings && (
+        <GroupSettings
+          groupId={groupId}
+          user={user}
+          smtpEnabled={smtpEnabled}
+          onClose={() => setShowGroupSettings(false)}
+          onGroupDeleted={() => {
+            setShowGroupSettings(false);
+            onGroupLost();
+          }}
+          onLeft={() => {
+            setShowGroupSettings(false);
+            onGroupLost();
+          }}
         />
       )}
     </div>
