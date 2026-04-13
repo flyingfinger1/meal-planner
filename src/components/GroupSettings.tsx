@@ -337,37 +337,39 @@ export default function GroupSettings({
               )}
             </div>
 
-            {/* Leave group */}
-            <div className="p-4 space-y-3">
-              <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">Gruppe verlassen</p>
-              {!confirmLeave ? (
-                <button
-                  onClick={() => setConfirmLeave(true)}
-                  className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
-                >
-                  Gruppe verlassen
-                </button>
-              ) : (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
-                  <p className="text-sm text-red-800">Wirklich verlassen?</p>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleLeave}
-                      disabled={leaveLoading}
-                      className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
-                    >
-                      {leaveLoading ? '…' : 'Verlassen'}
-                    </button>
-                    <button
-                      onClick={() => setConfirmLeave(false)}
-                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
-                    >
-                      Abbrechen
-                    </button>
+            {/* Leave group — only shown for non-owners */}
+            {!isOwner && (
+              <div className="p-4 space-y-3">
+                <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">Gruppe verlassen</p>
+                {!confirmLeave ? (
+                  <button
+                    onClick={() => setConfirmLeave(true)}
+                    className="px-4 py-2 border border-red-300 text-red-600 rounded-lg text-sm font-medium hover:bg-red-50"
+                  >
+                    Gruppe verlassen
+                  </button>
+                ) : (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 space-y-2">
+                    <p className="text-sm text-red-800">Wirklich verlassen?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={handleLeave}
+                        disabled={leaveLoading}
+                        className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {leaveLoading ? '…' : 'Verlassen'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmLeave(false)}
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+                      >
+                        Abbrechen
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Delete group (owner only) */}
             {isOwner && (
