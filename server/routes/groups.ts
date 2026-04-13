@@ -74,7 +74,7 @@ router.get('/:id', (req: Request, res: Response) => {
   if (!group) return res.status(404).json({ error: 'Group not found' });
 
   const members = queryAll(`
-    SELECT u.id, u.name, u.email, gm.role, gm.joined_at
+    SELECT u.id as user_id, u.name, u.email, gm.role, gm.joined_at
     FROM group_members gm
     JOIN users u ON u.id = gm.user_id
     WHERE gm.group_id = ?
@@ -161,7 +161,7 @@ router.post('/:id/regenerate-invite', (req: Request, res: Response) => {
 
   const newCode = generateInviteCode();
   runSql('UPDATE groups SET invite_code = ? WHERE id = ?', [newCode, groupId]);
-  res.json({ inviteCode: newCode });
+  res.json({ invite_code: newCode });
 });
 
 export default router;

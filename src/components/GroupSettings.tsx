@@ -61,13 +61,15 @@ export default function GroupSettings({
   const isOwner = members.find(m => m.user_id === user.id)?.role === 'owner';
 
   useEffect(() => {
-    getGroup(groupId).then(g => {
-      setGroupName(g.name);
-      setEditName(g.name);
-      setMembers(g.members);
-      setInviteCode(g.invite_code);
-      setLoading(false);
-    });
+    getGroup(groupId)
+      .then(g => {
+        setGroupName(g.name);
+        setEditName(g.name);
+        setMembers(g.members);
+        setInviteCode(g.invite_code);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [groupId]);
 
   const handleSaveName = async () => {
