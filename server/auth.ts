@@ -43,10 +43,8 @@ function setCookieToken(res: Response, token: string): void {
 
 function createGroupForUser(userId: number, groupName: string): number {
   const inviteCode = crypto.randomBytes(4).toString('hex');
-  const db = getDb();
-  db.run('INSERT INTO groups (name, invite_code) VALUES (?, ?)', [groupName, inviteCode]);
-  saveDb();
-  const group = queryOne('SELECT last_insert_rowid() as id');
+  runSql('INSERT INTO groups (name, invite_code) VALUES (?, ?)', [groupName, inviteCode]);
+  const group = queryOne('SELECT * FROM groups WHERE invite_code = ?', [inviteCode]);
   const groupId = group?.id as number;
   runSql('INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)', [groupId, userId, 'owner']);
   return groupId;
