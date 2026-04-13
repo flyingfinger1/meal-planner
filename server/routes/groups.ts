@@ -126,13 +126,6 @@ router.post('/:id/leave', (req: Request, res: Response) => {
   }
 
   runSql('DELETE FROM group_members WHERE group_id = ? AND user_id = ?', [groupId, userId]);
-
-  // Auto-delete group if no members remain
-  const remaining = queryOne('SELECT COUNT(*) as count FROM group_members WHERE group_id = ?', [groupId]);
-  if ((remaining?.count ?? 0) === 0) {
-    runSql('DELETE FROM groups WHERE id = ?', [groupId]);
-  }
-
   res.json({ ok: true });
 });
 
