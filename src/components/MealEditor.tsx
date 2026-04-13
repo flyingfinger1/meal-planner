@@ -14,6 +14,7 @@ export default function MealEditor({ mealId, onClose, onDeleted }: MealEditorPro
   const [name, setName] = useState('');
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export default function MealEditor({ mealId, onClose, onDeleted }: MealEditorPro
 
   const handleDelete = async () => {
     if (confirm('Essen wirklich löschen? Es wird auch aus dem Plan entfernt.')) {
+      setDeleting(true);
       await deleteMeal(mealId);
       onDeleted?.();
       onClose();
@@ -75,9 +77,10 @@ export default function MealEditor({ mealId, onClose, onDeleted }: MealEditorPro
         <div className="p-4 border-t border-gray-100">
           <button
             onClick={handleDelete}
-            className="text-sm text-red-500 hover:text-red-700"
+            disabled={deleting}
+            className="text-sm text-red-500 hover:text-red-700 disabled:opacity-50"
           >
-            Essen löschen
+            {deleting ? 'Löscht...' : 'Essen löschen'}
           </button>
         </div>
       </div>
