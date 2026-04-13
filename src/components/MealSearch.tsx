@@ -42,7 +42,6 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
       const meal = await createMeal(query.trim());
       await setPlanEntry(date, mealType, meal.id);
       onDone();
-      if (onEditMeal) onEditMeal(meal);
     } catch (e) {
       console.error('Failed to create meal', e);
       setCreating(false);
