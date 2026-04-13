@@ -233,27 +233,35 @@ router.post('/switch-group', (req: Request, res: Response) => {
 });
 
 // GET /google
-router.get('/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  router.get('/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
 
-// GET /google/callback
-router.get(
-  '/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${process.env.APP_URL || 'http://localhost:5173'}/login?error=oauth` }),
-  (req: Request, res: Response) => {
-    const user = req.user as any;
-    if (!user) return res.redirect(`${process.env.APP_URL || 'http://localhost:5173'}/login?error=oauth`);
+  router.get(
+    '/google/callback',
+    passport.authenticate('google', { session: false, failureRedirect: `${process.env.APP_URL || 'http://localhost:5173'}/login?error=oauth` }),
+    (req: Request, res: Response) => {
+      const user = req.user as any;
+      if (!user) return res.redirect(`${process.env.APP_URL || 'http://localhost:5173'}/login?error=oauth`);
 
-    const membership = queryOne(
-      'SELECT group_id FROM group_members WHERE user_id = ? ORDER BY joined_at ASC LIMIT 1',
-      [user.id]
-    );
-    const groupId = membership?.group_id ?? null;
+      const membership = queryOne(
+        'SELECT group_id FROM group_members WHERE user_id = ? ORDER BY joined_at ASC LIMIT 1',
+        [user.id]
+      );
+      const groupId = membership?.group_id ?? null;
 
-    const token = signToken({ userId: user.id, groupId });
-    setCookieToken(res, token);
-    res.redirect(process.env.APP_URL || 'http://localhost:5173');
-  }
-);
+      const token = signToken({ userId: user.id, groupId });
+      setCookieToken(res, token);
+      res.redirect(process.env.APP_URL || 'http://localhost:5173');
+    }
+  );
+} else {
+  router.get('/google', (_req: Request, res: Response) => {
+    res.status(501).json({ error: 'Google OAuth not configured' });
+  });
+  router.get('/google/callback', (_req: Request, res: Response) => {
+    res.status(501).json({ error: 'Google OAuth not configured' });
+  });
+}
 
 // Middleware to protect API routes
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
