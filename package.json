@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"tsx watch server/index.ts\" \"vite\"",
+    "dev": "concurrently \"tsx watch --env-file=.env server/index.ts\" \"vite\"",
     "build": "vite build",
     "start": "tsx server/index.ts"
   },
