@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import type { Meal, MealType } from '../types';
-import { searchMeals, createMeal, setPlanEntry } from '../api';
+import { searchMeals, createMeal } from '../api';
 import { useDebounce } from '../hooks/useDebounce';
 
 interface MealSearchProps {
   date: string;
   mealType: MealType;
-  onDone: () => void;
+  onClose: () => void;
+  onSelect: (meal: Meal) => void;
   onEditMeal?: (meal: Meal) => void;
 }
 
-export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealSearchProps) {
+export default function MealSearch({ onClose, onSelect, onEditMeal }: MealSearchProps) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Meal[]>([]);
   const [creating, setCreating] = useState(false);
@@ -22,26 +24,15 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
   }, []);
 
   useEffect(() => {
-    if (!debouncedQuery.trim()) {
-      // Show recent meals when empty
-      searchMeals('').then(setResults);
-      return;
-    }
-    searchMeals(debouncedQuery).then(setResults);
+    searchMeals(debouncedQuery.trim() ? debouncedQuery : '').then(setResults);
   }, [debouncedQuery]);
-
-  const selectMeal = async (meal: Meal) => {
-    await setPlanEntry(date, mealType, meal.id);
-    onDone();
-  };
 
   const createAndSelect = async () => {
     if (!query.trim() || creating) return;
-    setCreating(true);
+    flushSync(() => setCreating(true));
     try {
       const meal = await createMeal(query.trim());
-      await setPlanEntry(date, mealType, meal.id);
-      onDone();
+      onSelect(meal);
       if (onEditMeal) onEditMeal(meal);
     } catch (e) {
       console.error('Failed to create meal', e);
@@ -52,10 +43,11 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
   const exactMatch = results.some(m => m.name.toLowerCase() === query.trim().toLowerCase());
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center" onMouseDown={(e) => { if (e.target === e.currentTarget) onDone(); }}>
-      <div
-        className="bg-white w-full sm:w-96 sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col"
-      >
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center"
+      onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white w-full sm:w-96 sm:rounded-xl rounded-t-xl max-h-[80vh] flex flex-col">
         <div className="p-4 border-b border-gray-100">
           <input
             ref={inputRef}
@@ -64,7 +56,7 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => {
               if (e.key === 'Enter' && !exactMatch && query.trim()) createAndSelect();
-              if (e.key === 'Escape') onDone();
+              if (e.key === 'Escape') onClose();
             }}
             placeholder="Essen suchen oder neu erstellen..."
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -77,14 +69,15 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
               disabled={creating}
               className="w-full px-4 py-3 text-left hover:bg-blue-50 active:bg-blue-100 text-blue-600 font-medium border-b border-gray-100 disabled:opacity-50"
             >
-              {creating ? 'Erstellt...' : <span>+ &ldquo;{query.trim()}&rdquo; neu erstellen</span>}
+              {creating ? 'Erstellt…' : <span>+ &ldquo;{query.trim()}&rdquo; neu erstellen</span>}
             </button>
           )}
           {results.map(meal => (
             <button
               key={meal.id}
-              onClick={() => selectMeal(meal)}
-              className="w-full px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 border-b border-gray-50"
+              onClick={() => onSelect(meal)}
+              disabled={creating}
+              className="w-full px-4 py-3 text-left hover:bg-gray-50 active:bg-gray-100 border-b border-gray-50 disabled:opacity-50"
             >
               {meal.name}
             </button>

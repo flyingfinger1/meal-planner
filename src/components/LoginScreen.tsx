@@ -48,8 +48,48 @@ export default function LoginScreen({ onLogin, googleEnabled }: LoginScreenProps
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-xl shadow-lg p-6 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center mb-5">Essensplaner</h1>
+      <div className="w-full max-w-3xl flex flex-col sm:flex-row gap-0 sm:gap-8 items-center">
+
+        {/* App description */}
+        <div className="sm:flex-1 w-full text-center sm:text-left mb-6 sm:mb-0">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Essensplaner</h1>
+          <p className="text-gray-500 mb-6 text-sm leading-relaxed">
+            Plant eure Mahlzeiten für die Woche, verwaltet Rezepte und erstellt gemeinsam Einkaufslisten.
+          </p>
+          <ul className="space-y-3 text-sm text-gray-600 inline-block text-left">
+            <li className="flex items-start gap-3">
+              <span className="text-2xl leading-none">📅</span>
+              <div>
+                <p className="font-medium text-gray-800">Wochenplanung</p>
+                <p className="text-gray-500">Plane Mittag und Abendessen für jeden Tag</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-2xl leading-none">🍽️</span>
+              <div>
+                <p className="font-medium text-gray-800">Rezeptverwaltung</p>
+                <p className="text-gray-500">Speichere Gerichte mit Zutaten und Mengen</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-2xl leading-none">🛒</span>
+              <div>
+                <p className="font-medium text-gray-800">Einkaufsliste</p>
+                <p className="text-gray-500">Exportiere direkt was du für die Woche brauchst</p>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              <span className="text-2xl leading-none">👥</span>
+              <div>
+                <p className="font-medium text-gray-800">Gemeinsam planen</p>
+                <p className="text-gray-500">Teile den Plan mit deinem Haushalt</p>
+              </div>
+            </li>
+          </ul>
+        </div>
+
+        {/* Login card */}
+        <div className="bg-white rounded-xl shadow-lg p-6 w-full sm:w-80 flex-shrink-0">
 
         {/* Tabs */}
         <div className="flex rounded-lg border border-gray-200 mb-5 overflow-hidden">
@@ -186,6 +226,7 @@ export default function LoginScreen({ onLogin, googleEnabled }: LoginScreenProps
             )}
           </form>
         )}
+        </div>{/* end login card */}
       </div>
     </div>
   );

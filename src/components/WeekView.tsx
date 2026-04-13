@@ -8,7 +8,7 @@ interface WeekViewProps {
   calendarEvents: CalendarEvent[];
   onAddMeal: (date: string, mealType: MealType) => void;
   onEditMeal: (entry: PlanEntry) => void;
-  onClearMeal: (date: string, mealType: MealType) => void;
+  onClearMeal: (entryId: number) => void;
 }
 
 export default function WeekView({ days, entries, calendarEvents, onAddMeal, onEditMeal, onClearMeal }: WeekViewProps) {

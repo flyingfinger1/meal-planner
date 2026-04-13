@@ -198,6 +198,28 @@ export async function initDb(): Promise<Database> {
     db.run('PRAGMA foreign_keys = OFF');
     runMigration1(db);
     db.run('PRAGMA foreign_keys = ON');
+    schemaVersion = 1;
+    saveDb();
+  }
+
+  if (schemaVersion < 2) {
+    // Remove UNIQUE(group_id, date, meal_type) to allow multiple meals per slot
+    db.run('PRAGMA foreign_keys = OFF');
+    db.run(`
+      CREATE TABLE IF NOT EXISTS meal_plan_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+        date TEXT NOT NULL,
+        meal_type TEXT NOT NULL DEFAULT 'dinner',
+        meal_id INTEGER REFERENCES meals(id) ON DELETE SET NULL,
+        notes TEXT DEFAULT ''
+      )
+    `);
+    db.run(`INSERT INTO meal_plan_new SELECT * FROM meal_plan`);
+    db.run(`DROP TABLE meal_plan`);
+    db.run(`ALTER TABLE meal_plan_new RENAME TO meal_plan`);
+    db.run(`UPDATE _meta SET value = '2' WHERE key = 'schema_version'`);
+    db.run('PRAGMA foreign_keys = ON');
     saveDb();
   }
 

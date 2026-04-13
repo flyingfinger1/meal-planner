@@ -46,10 +46,16 @@ export const saveIngredients = (mealId: number, ingredients: Omit<Ingredient, 'i
 export const getPlan = (from: string, to: string) =>
   request<PlanEntry[]>(`/api/plan?from=${from}&to=${to}`);
 
-export const setPlanEntry = (date: string, meal_type: string, meal_id: number | null, notes?: string) =>
-  request<PlanEntry>('/api/plan', {
-    method: 'PUT',
+export const addPlanEntry = (date: string, meal_type: string, meal_id: number, notes?: string) =>
+  request<void>('/api/plan', {
+    method: 'POST',
     body: JSON.stringify({ date, meal_type, meal_id, notes }),
+  });
+
+export const updatePlanEntry = (id: number, meal_id: number, notes?: string) =>
+  request<PlanEntry>(`/api/plan/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ meal_id, notes }),
   });
 
 export const deletePlanEntry = (id: number) =>

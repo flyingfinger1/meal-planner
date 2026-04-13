@@ -7,10 +7,10 @@ interface DayColumnProps {
   date: string;
   entries: PlanEntry[];
   isToday: boolean;
-  calendarEvent?: string; // event title if this day has a calendar event
+  calendarEvent?: string;
   onAddMeal: (date: string, mealType: MealType) => void;
   onEditMeal: (entry: PlanEntry) => void;
-  onClearMeal: (date: string, mealType: MealType) => void;
+  onClearMeal: (entryId: number) => void;
 }
 
 const DAY_NAMES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -22,14 +22,14 @@ export default function DayColumn({ date, entries, isToday, calendarEvent, onAdd
   const dayNum = d.getDate();
   const monthNum = d.getMonth() + 1;
 
-  const getEntry = (type: MealType) => entries.find(e => e.meal_type === type);
+  const getEntries = (type: MealType) => entries.filter(e => e.meal_type === type);
 
   // Always show dinner, show lunch/breakfast if expanded or if they have entries
   const visibleTypes = MEAL_TYPES.filter(t =>
-    t.key === 'dinner' || expanded || getEntry(t.key)
+    t.key === 'dinner' || expanded || getEntries(t.key).length > 0
   );
 
-  const hasExtraEntries = MEAL_TYPES.some(t => t.key !== 'dinner' && getEntry(t.key));
+  const hasExtraEntries = MEAL_TYPES.some(t => t.key !== 'dinner' && getEntries(t.key).length > 0);
 
   const borderClass = calendarEvent
     ? 'border-orange-400 bg-orange-50/30'
@@ -50,37 +50,46 @@ export default function DayColumn({ date, entries, isToday, calendarEvent, onAdd
           <span className={`text-lg font-bold ${isToday ? 'text-blue-700' : 'text-gray-800'}`}>{dayNum}.{monthNum}.</span>
         </div>
         {!expanded && !hasExtraEntries && (
-          <button
-            onClick={() => setExpanded(true)}
-            className="text-xs text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={() => setExpanded(true)} className="text-xs text-gray-400 hover:text-gray-600">
             mehr
           </button>
         )}
         {expanded && (
-          <button
-            onClick={() => setExpanded(false)}
-            className="text-xs text-gray-400 hover:text-gray-600"
-          >
+          <button onClick={() => setExpanded(false)} className="text-xs text-gray-400 hover:text-gray-600">
             weniger
           </button>
         )}
       </div>
       <div className="space-y-1">
-        {visibleTypes.map(t => (
-          <MealSlot
-            key={t.key}
-            entry={getEntry(t.key)}
-            mealType={t.key}
-            label={t.label}
-            onAdd={() => onAddMeal(date, t.key)}
-            onEdit={() => {
-              const entry = getEntry(t.key);
-              if (entry) onEditMeal(entry);
-            }}
-            onClear={() => onClearMeal(date, t.key)}
-          />
-        ))}
+        {visibleTypes.map(t => {
+          const typeEntries = getEntries(t.key);
+          return (
+            <div key={t.key}>
+              {typeEntries.map((entry, i) => (
+                <MealSlot
+                  key={entry.id}
+                  entry={entry}
+                  mealType={t.key}
+                  label={t.label}
+                  showLabel={i === 0}
+                  onEdit={() => onEditMeal(entry)}
+                  onClear={() => onClearMeal(entry.id)}
+                />
+              ))}
+              {/* Always show one empty add-slot at the end */}
+              <MealSlot
+                key={`${t.key}-add`}
+                entry={undefined}
+                mealType={t.key}
+                label={t.label}
+                showLabel={typeEntries.length === 0}
+                onAdd={() => onAddMeal(date, t.key)}
+                onEdit={() => {}}
+                onClear={() => {}}
+              />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

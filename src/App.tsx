@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { MealType, PlanEntry, Meal, User, Group } from './types';
-import { setPlanEntry, getCalendarEvents, checkAuth, getAuthProviders, switchGroup, getGroups } from './api';
+import { addPlanEntry, deletePlanEntry, getCalendarEvents, checkAuth, getAuthProviders, switchGroup, getGroups } from './api';
 import type { CalendarEvent } from './api';
 import { usePlan } from './hooks/usePlan';
 import Header from './components/Header';
@@ -203,15 +203,22 @@ function AuthenticatedApp({ user, groupId, smtpEnabled, onLogout, onGroupChange,
     if (entry.meal_id) setEditMealId(entry.meal_id);
   }, []);
 
-  const handleClearMeal = useCallback(async (date: string, mealType: MealType) => {
-    await setPlanEntry(date, mealType, null);
+  const handleClearMeal = useCallback(async (entryId: number) => {
+    await deletePlanEntry(entryId);
     refresh();
   }, [refresh]);
 
-  const handleSearchDone = useCallback(() => {
-    setSearchTarget(null);
+  const handleMealSelect = useCallback(async (meal: Meal) => {
+    if (!searchTarget) return;
+    const { date, mealType } = searchTarget;
+    setSearchTarget(null); // close immediately — no waiting
+    await addPlanEntry(date, mealType, meal.id);
     refresh();
-  }, [refresh]);
+  }, [searchTarget, refresh]);
+
+  const handleSearchClose = useCallback(() => {
+    setSearchTarget(null);
+  }, []);
 
   const handleEditorClose = useCallback(() => {
     setEditMealId(null);
@@ -253,7 +260,8 @@ function AuthenticatedApp({ user, groupId, smtpEnabled, onLogout, onGroupChange,
         <MealSearch
           date={searchTarget.date}
           mealType={searchTarget.mealType}
-          onDone={handleSearchDone}
+          onClose={handleSearchClose}
+          onSelect={handleMealSelect}
           onEditMeal={(meal: Meal) => setEditMealId(meal.id)}
         />
       )}

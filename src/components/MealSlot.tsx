@@ -4,18 +4,20 @@ interface MealSlotProps {
   entry?: PlanEntry;
   mealType: MealType;
   label: string;
-  onAdd: () => void;
+  showLabel: boolean;
+  onAdd?: () => void;
   onEdit: () => void;
   onClear: () => void;
 }
 
-export default function MealSlot({ entry, mealType, label, onAdd, onEdit, onClear }: MealSlotProps) {
+export default function MealSlot({ entry, mealType, label, showLabel, onAdd, onEdit, onClear }: MealSlotProps) {
   const hasMeal = entry?.meal_id != null;
+  const labelChar = mealType === 'dinner' ? 'A' : mealType === 'lunch' ? 'M' : 'F';
 
   return (
     <div className="flex items-center gap-2 min-h-[44px]">
       <span className="text-xs text-gray-400 w-6 shrink-0">
-        {mealType === 'dinner' ? 'A' : mealType === 'lunch' ? 'M' : 'F'}
+        {showLabel ? labelChar : ''}
       </span>
       {hasMeal ? (
         <button

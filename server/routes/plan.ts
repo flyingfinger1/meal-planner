@@ -16,39 +16,43 @@ router.get('/', (req: Request, res: Response) => {
     FROM meal_plan mp
     LEFT JOIN meals m ON mp.meal_id = m.id
     WHERE mp.group_id = ? AND mp.date >= ? AND mp.date <= ?
-    ORDER BY mp.date, mp.meal_type
+    ORDER BY mp.date, mp.meal_type, mp.id
   `, [groupId, from as string, to as string]);
 
   res.json(entries);
 });
 
-// Set/update a plan entry (upsert)
-router.put('/', (req: Request, res: Response) => {
+// Add a new plan entry
+router.post('/', (req: Request, res: Response) => {
   const groupId = req.groupId;
   if (groupId == null) return res.status(403).json({ error: 'No group selected' });
 
   const { date, meal_type, meal_id, notes } = req.body;
-  if (!date || !meal_type) return res.status(400).json({ error: 'date and meal_type required' });
+  if (!date || !meal_type || !meal_id) return res.status(400).json({ error: 'date, meal_type and meal_id required' });
 
-  if (meal_id === null) {
-    runSql('DELETE FROM meal_plan WHERE group_id = ? AND date = ? AND meal_type = ?', [groupId, date, meal_type]);
-    return res.status(204).end();
-  }
+  runSql('INSERT INTO meal_plan (group_id, date, meal_type, meal_id, notes) VALUES (?, ?, ?, ?, ?)',
+    [groupId, date, meal_type, meal_id, notes || '']);
 
-  // Check if entry exists
-  const existing = queryOne('SELECT * FROM meal_plan WHERE group_id = ? AND date = ? AND meal_type = ?', [groupId, date, meal_type]);
-  if (existing) {
-    runSql('UPDATE meal_plan SET meal_id = ?, notes = ? WHERE id = ?', [meal_id, notes || '', existing.id]);
-  } else {
-    runSql('INSERT INTO meal_plan (group_id, date, meal_type, meal_id, notes) VALUES (?, ?, ?, ?, ?)', [groupId, date, meal_type, meal_id, notes || '']);
-  }
+  res.status(204).end();
+});
+
+// Update an existing plan entry (change meal)
+router.put('/:id', (req: Request, res: Response) => {
+  const groupId = req.groupId;
+  if (groupId == null) return res.status(403).json({ error: 'No group selected' });
+
+  const { meal_id, notes } = req.body;
+  const id = Number(req.params.id);
+
+  runSql('UPDATE meal_plan SET meal_id = ?, notes = ? WHERE id = ? AND group_id = ?',
+    [meal_id, notes || '', id, groupId]);
 
   const entry = queryOne(`
     SELECT mp.*, m.name as meal_name
     FROM meal_plan mp
     LEFT JOIN meals m ON mp.meal_id = m.id
-    WHERE mp.group_id = ? AND mp.date = ? AND mp.meal_type = ?
-  `, [groupId, date, meal_type]);
+    WHERE mp.id = ?
+  `, [id]);
 
   res.json(entry);
 });
