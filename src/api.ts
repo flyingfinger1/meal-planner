@@ -1,4 +1,4 @@
-import type { Meal, Ingredient, PlanEntry, ShoppingItem, QuickList, QuickListItem } from './types';
+import type { Meal, Ingredient, PlanEntry, ShoppingItem, QuickList, QuickListItem, User, Group, GroupMember } from './types';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -114,4 +114,78 @@ export const saveCalendarSettings = (settings: Partial<CalendarSettings>) =>
   request<{ ok: boolean }>('/api/calendar/settings', {
     method: 'PUT',
     body: JSON.stringify(settings),
+  });
+
+// Auth
+export const register = (email: string, name: string, password: string) =>
+  request<{ user: User; groupId: number }>('/api/auth/register', {
+    method: 'POST',
+    body: JSON.stringify({ email, name, password }),
+  });
+
+export const login = (email: string, password: string) =>
+  request<{ user: User; groupId: number | null }>('/api/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ email, password }),
+  });
+
+export const checkAuth = () =>
+  request<{ authenticated: boolean; user?: User; groupId?: number | null; smtpEnabled?: boolean }>('/api/auth/check');
+
+export const getAuthProviders = () =>
+  request<{ google: boolean }>('/api/auth/providers');
+
+export const switchGroup = (groupId: number) =>
+  request<{ ok: boolean }>('/api/auth/switch-group', {
+    method: 'POST',
+    body: JSON.stringify({ groupId }),
+  });
+
+// Groups
+export const getGroups = () =>
+  request<(Group & { role: string })[]>('/api/groups');
+
+export const createGroup = (name: string) =>
+  request<Group>('/api/groups', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+
+export const getGroup = (id: number) =>
+  request<Group & { members: GroupMember[] }>(`/api/groups/${id}`);
+
+export const updateGroup = (id: number, name: string) =>
+  request<Group>(`/api/groups/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify({ name }),
+  });
+
+export const deleteGroup = (id: number) =>
+  request<void>(`/api/groups/${id}`, { method: 'DELETE' });
+
+export const leaveGroup = (id: number) =>
+  request<void>(`/api/groups/${id}/leave`, { method: 'POST' });
+
+export const removeMember = (groupId: number, userId: number) =>
+  request<void>(`/api/groups/${groupId}/members/${userId}`, { method: 'DELETE' });
+
+export const transferOwnership = (groupId: number, targetUserId: number) =>
+  request<{ ok: boolean }>(`/api/groups/${groupId}/transfer-ownership`, {
+    method: 'POST',
+    body: JSON.stringify({ targetUserId }),
+  });
+
+export const regenerateInviteCode = (groupId: number) =>
+  request<{ invite_code: string }>(`/api/groups/${groupId}/regenerate-invite`, { method: 'POST' });
+
+export const getGroupByInviteCode = (inviteCode: string) =>
+  request<{ id: number; name: string; memberCount: number }>(`/api/groups/join/${inviteCode}`);
+
+export const joinGroup = (inviteCode: string) =>
+  request<{ groupId: number }>(`/api/groups/join/${inviteCode}`, { method: 'POST' });
+
+export const sendInvitation = (groupId: number, email: string) =>
+  request<{ inviteUrl: string; emailSent: boolean }>(`/api/groups/${groupId}/invitations`, {
+    method: 'POST',
+    body: JSON.stringify({ email }),
   });

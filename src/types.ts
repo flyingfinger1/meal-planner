@@ -1,3 +1,25 @@
+export interface User {
+  id: number;
+  email: string;
+  name: string;
+}
+
+export interface Group {
+  id: number;
+  name: string;
+  invite_code: string;
+  created_at: string;
+}
+
+export interface GroupMember {
+  user_id: number;
+  group_id: number;
+  role: 'owner' | 'member';
+  name: string;
+  email: string;
+  joined_at: string;
+}
+
 export interface Meal {
   id: number;
   name: string;
