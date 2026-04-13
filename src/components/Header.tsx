@@ -6,7 +6,6 @@ interface HeaderProps {
   onWeekChange: (delta: number) => void;
   onShoppingClick: () => void;
   onQuickListsClick: () => void;
-  onSettingsClick: () => void;
   onLogout: () => void;
   user: User;
   groups: (Group & { role: string })[];
@@ -19,7 +18,6 @@ interface HeaderProps {
 export default function Header({
   onShoppingClick,
   onQuickListsClick,
-  onSettingsClick,
   onLogout,
   onWeekChange,
   weekLabel,
@@ -59,19 +57,7 @@ export default function Header({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-xl font-bold">Essensplaner</span>
-          {/* Calendar settings gear */}
-          <button
-            onClick={onSettingsClick}
-            className="p-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 text-gray-400 hover:text-gray-600"
-            aria-label="Kalender-Einstellungen"
-            title="Kalender-Einstellungen"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
-              <circle cx="12" cy="12" r="3"/>
-            </svg>
-          </button>
-          {/* Group settings gear */}
+          {/* Group settings */}
           <button
             onClick={onGroupSettings}
             className="p-1.5 rounded-lg hover:bg-gray-100 active:bg-gray-200 text-gray-400 hover:text-gray-600"

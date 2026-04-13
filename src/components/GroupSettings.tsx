@@ -9,6 +9,8 @@ import {
   transferOwnership,
   regenerateInviteCode,
   sendInvitation,
+  getCalendarSettings,
+  saveCalendarSettings,
 } from '../api';
 
 interface GroupSettingsProps {
@@ -46,6 +48,12 @@ export default function GroupSettings({
   const [inviteSending, setInviteSending] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Calendar settings
+  const [icalUrl, setIcalUrl] = useState('');
+  const [icalLabel, setIcalLabel] = useState('');
+  const [calSaving, setCalSaving] = useState(false);
+  const [calSaved, setCalSaved] = useState(false);
+
   // Regenerate confirmation
   const [confirmRegen, setConfirmRegen] = useState(false);
   const [regenLoading, setRegenLoading] = useState(false);
@@ -62,12 +70,14 @@ export default function GroupSettings({
   const isOwner = members.find(m => m.user_id === user.id)?.role === 'owner';
 
   useEffect(() => {
-    getGroup(groupId)
-      .then(g => {
+    Promise.all([getGroup(groupId), getCalendarSettings()])
+      .then(([g, cal]) => {
         setGroupName(g.name);
         setEditName(g.name);
         setMembers(g.members);
         setInviteCode(g.invite_code);
+        setIcalUrl(cal.ical_url);
+        setIcalLabel(cal.ical_label);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -133,6 +143,14 @@ export default function GroupSettings({
       setInviteResult(err instanceof Error ? err.message : 'Fehler beim Senden');
     }
     setInviteSending(false);
+  };
+
+  const handleSaveCalendar = async () => {
+    setCalSaving(true);
+    await saveCalendarSettings({ ical_url: icalUrl, ical_label: icalLabel });
+    setCalSaving(false);
+    setCalSaved(true);
+    setTimeout(() => setCalSaved(false), 2000);
   };
 
   const handleRegenerate = async () => {
@@ -335,6 +353,41 @@ export default function GroupSettings({
                   )}
                 </>
               )}
+            </div>
+
+            {/* Calendar settings */}
+            <div className="p-4 space-y-3">
+              <p className="text-xs uppercase tracking-wider text-gray-400 font-medium">Kalender</p>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">iCal-URL (Google Calendar)</label>
+                <input
+                  type="url"
+                  value={icalUrl}
+                  onChange={e => setIcalUrl(e.target.value)}
+                  placeholder="https://calendar.google.com/calendar/ical/...basic.ics"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <p className="text-xs text-gray-400 mt-1">
+                  Google Calendar &rarr; Einstellungen &rarr; Kalender &rarr; Geheime Adresse im iCal-Format
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Bezeichnung</label>
+                <input
+                  type="text"
+                  value={icalLabel}
+                  onChange={e => setIcalLabel(e.target.value)}
+                  placeholder="z.B. Kinder zu Besuch"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <button
+                onClick={handleSaveCalendar}
+                disabled={calSaving}
+                className="w-full py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+              >
+                {calSaved ? 'Gespeichert!' : calSaving ? 'Speichert…' : 'Speichern'}
+              </button>
             </div>
 
             {/* Leave group — only shown for non-owners */}

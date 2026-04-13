@@ -8,7 +8,6 @@ import WeekView from './components/WeekView';
 import MealSearch from './components/MealSearch';
 import MealEditor from './components/MealEditor';
 import ShoppingExport from './components/ShoppingExport';
-import CalendarSettings from './components/CalendarSettings';
 import QuickLists from './components/QuickLists';
 import LoginScreen from './components/LoginScreen';
 import GroupOnboarding from './components/GroupOnboarding';
@@ -170,20 +169,18 @@ function AuthenticatedApp({ user, groupId, smtpEnabled, onLogout, onGroupChange,
 
   // Calendar events
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
-  const [calendarVersion, setCalendarVersion] = useState(0);
 
   useEffect(() => {
     getCalendarEvents(from, to)
       .then(data => setCalendarEvents(data.events))
       .catch(() => setCalendarEvents([]));
-  }, [from, to, calendarVersion]);
+  }, [from, to]);
 
   // Modal states
   const [searchTarget, setSearchTarget] = useState<{ date: string; mealType: MealType } | null>(null);
   const [editMealId, setEditMealId] = useState<number | null>(null);
   const [showShopping, setShowShopping] = useState(false);
   const [showQuickLists, setShowQuickLists] = useState(false);
-  const [showCalendarSettings, setShowCalendarSettings] = useState(false);
 
   const handleAddMeal = useCallback((date: string, mealType: MealType) => {
     setSearchTarget({ date, mealType });
@@ -222,7 +219,6 @@ function AuthenticatedApp({ user, groupId, smtpEnabled, onLogout, onGroupChange,
         onWeekChange={delta => setWeekOffset(prev => prev + delta)}
         onShoppingClick={() => setShowShopping(true)}
         onQuickListsClick={() => setShowQuickLists(true)}
-        onSettingsClick={() => setShowCalendarSettings(true)}
         onLogout={onLogout}
         user={user}
         groups={groups}
@@ -266,13 +262,6 @@ function AuthenticatedApp({ user, groupId, smtpEnabled, onLogout, onGroupChange,
 
       {showQuickLists && (
         <QuickLists onClose={() => setShowQuickLists(false)} />
-      )}
-
-      {showCalendarSettings && (
-        <CalendarSettings
-          onClose={() => setShowCalendarSettings(false)}
-          onSaved={() => setCalendarVersion(v => v + 1)}
-        />
       )}
 
       {showGroupSettings && (
