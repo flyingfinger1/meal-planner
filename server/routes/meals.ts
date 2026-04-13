@@ -29,8 +29,8 @@ router.post('/', (req, res) => {
   if (existing) return res.json(existing);
 
   runSql('INSERT INTO meals (name) VALUES (?)', [name.trim()]);
-  const id = getLastInsertRowId();
-  const meal = queryOne('SELECT * FROM meals WHERE id = ?', [id]);
+  const meal = queryOne('SELECT * FROM meals WHERE name = ?', [name.trim()]);
+  if (!meal) return res.status(500).json({ error: 'Failed to retrieve created meal' });
   res.status(201).json(meal);
 });
 

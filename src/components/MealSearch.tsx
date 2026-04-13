@@ -38,10 +38,15 @@ export default function MealSearch({ date, mealType, onDone, onEditMeal }: MealS
   const createAndSelect = async () => {
     if (!query.trim() || creating) return;
     setCreating(true);
-    const meal = await createMeal(query.trim());
-    await setPlanEntry(date, mealType, meal.id);
-    onDone();
-    if (onEditMeal) onEditMeal(meal);
+    try {
+      const meal = await createMeal(query.trim());
+      await setPlanEntry(date, mealType, meal.id);
+      onDone();
+      if (onEditMeal) onEditMeal(meal);
+    } catch (e) {
+      console.error('Failed to create meal', e);
+      setCreating(false);
+    }
   };
 
   const exactMatch = results.some(m => m.name.toLowerCase() === query.trim().toLowerCase());
