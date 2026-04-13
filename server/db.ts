@@ -195,7 +195,9 @@ export async function initDb(): Promise<Database> {
   }
 
   if (schemaVersion < 1) {
+    db.run('PRAGMA foreign_keys = OFF');
     runMigration1(db);
+    db.run('PRAGMA foreign_keys = ON');
     saveDb();
   }
 
