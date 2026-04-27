@@ -30,10 +30,12 @@ async function start() {
   // Auth routes (unprotected — register, login, logout, check, OAuth)
   app.use('/api/auth', authRouter);
 
-  // Protect all other API routes — exempt public join-peek endpoint
+  // Protect all other API routes — exempt public endpoints
   app.use('/api', (req, res, next) => {
-    // GET /api/groups/join/:code is public (invite preview, no auth required)
+    // GET /api/groups/join/:code — invite preview, no auth required
     if (req.method === 'GET' && req.path.startsWith('/groups/join/')) return next();
+    // GET /api/recipe/* — public HTML pages for Bring! to scrape
+    if (req.method === 'GET' && req.path.startsWith('/recipe/')) return next();
     return requireAuth(req, res, next);
   });
 
