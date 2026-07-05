@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "outDir": "dist-server",
+    "rootDir": "server",
+    "baseUrl": ".",
+    "paths": {
+      "sql.js": ["node_modules/sql.js/dist/sql-wasm.d.ts"]
+    }
+  },
+  "include": ["server/**/*"]
+}

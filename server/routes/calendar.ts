@@ -20,11 +20,11 @@ async function fetchCalendarEvents(groupId: number, url: string): Promise<{ date
     const events: { date: string; title: string }[] = [];
 
     for (const key of Object.keys(data)) {
-      const event = data[key];
-      if (event.type !== 'VEVENT') continue;
+      const event = data[key] as any;
+      if (!event || event.type !== 'VEVENT') continue;
 
-      const startRaw = event.start as any;
-      const endRaw = event.end as any;
+      const startRaw = event.start;
+      const endRaw = event.end;
       if (!startRaw) continue;
 
       const isDateOnly = startRaw.dateOnly === true;
