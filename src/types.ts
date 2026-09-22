@@ -47,9 +47,9 @@ export interface PlanEntry {
 export type MealType = 'breakfast' | 'lunch' | 'dinner';
 
 export const MEAL_TYPES: { key: MealType; label: string }[] = [
-  { key: 'dinner', label: 'Abendessen' },
-  { key: 'lunch', label: 'Mittagessen' },
   { key: 'breakfast', label: 'Frühstück' },
+  { key: 'lunch', label: 'Mittagessen' },
+  { key: 'dinner', label: 'Abendessen' },
 ];
 
 export interface ShoppingItem {

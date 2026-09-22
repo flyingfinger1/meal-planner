@@ -29,7 +29,8 @@ export default function DayColumn({ date, entries, isToday, calendarEvent, onAdd
     t.key === 'dinner' || expanded || getEntries(t.key).length > 0
   );
 
-  const hasExtraEntries = MEAL_TYPES.some(t => t.key !== 'dinner' && getEntries(t.key).length > 0);
+  // Show "mehr" whenever at least one non-dinner type is hidden (no entries yet)
+  const hasHiddenTypes = MEAL_TYPES.some(t => t.key !== 'dinner' && getEntries(t.key).length === 0);
 
   const borderClass = calendarEvent
     ? 'border-orange-400 bg-orange-50/30'
@@ -49,7 +50,7 @@ export default function DayColumn({ date, entries, isToday, calendarEvent, onAdd
           <span className={`text-xs font-semibold ${isToday ? 'text-blue-600' : 'text-gray-500'}`}>{dayName}</span>
           <span className={`text-lg font-bold ${isToday ? 'text-blue-700' : 'text-gray-800'}`}>{dayNum}.{monthNum}.</span>
         </div>
-        {!expanded && !hasExtraEntries && (
+        {!expanded && hasHiddenTypes && (
           <button onClick={() => setExpanded(true)} className="text-xs text-gray-400 hover:text-gray-600">
             mehr
           </button>
